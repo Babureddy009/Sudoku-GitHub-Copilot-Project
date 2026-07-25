@@ -6,13 +6,49 @@
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <h1>Sudoku Game</h1>
-  <div id="sudoku-board"></div>
-  <div class="controls">
-    <button id="new-game">New Game</button>
-    <button id="check-solution">Check Solution</button>
-    <span id="message"></span>
-  </div>
+  <main class="app-shell">
+    <h1>Sudoku Game</h1>
+
+    <section class="game-layout">
+      <section class="board-column" aria-label="Sudoku board section">
+        <div id="timer" aria-live="polite">Time: 00:00</div>
+        <div id="sudoku-board"></div>
+      </section>
+
+      <aside class="sidebar-column" aria-label="Game controls and leaderboard">
+        <div class="controls">
+          <div class="control-row control-row-inline">
+            <label for="difficulty">Difficulty:</label>
+            <select id="difficulty" name="difficulty">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+
+          <div class="control-row control-row-inline">
+            <label for="player-name">Name (optional):</label>
+            <input id="player-name" name="player-name" type="text" maxlength="24" placeholder="Anonymous">
+          </div>
+
+          <div class="control-row control-buttons">
+            <button id="theme-toggle" type="button" aria-pressed="false">Dark Mode</button>
+            <button id="new-game">New Game</button>
+            <button id="use-hint">Hint</button>
+            <button id="check-solution">Check Solution</button>
+          </div>
+
+          <p id="message" role="status" aria-live="polite"></p>
+        </div>
+
+        <section id="leaderboard" aria-live="polite" aria-labelledby="leaderboard-title">
+          <h2 id="leaderboard-title">Top 10 Fastest Times</h2>
+          <ol id="leaderboard-list"></ol>
+        </section>
+      </aside>
+    </section>
+  </main>
+
   <script src="/static/main.js"></script>
 </body>
 </html>
