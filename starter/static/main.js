@@ -8,6 +8,24 @@ let elapsedSeconds = 0;
 let timerIntervalId = null;
 let validationRequestCounter = 0;
 let hasRecordedWinForCurrentGame = false;
+let currentGameDifficulty = 'Medium';
+let currentGameHintsUsed = 0;
+
+function normalizeDifficulty(value) {
+  const normalizedValue = String(value || '').trim().toLowerCase();
+  if (normalizedValue === 'easy') {
+    return 'Easy';
+  }
+  if (normalizedValue === 'hard') {
+    return 'Hard';
+  }
+  return 'Medium';
+}
+
+function normalizeHintsUsed(value) {
+  const parsedValue = Number.parseInt(String(value), 10);
+  return Number.isInteger(parsedValue) && parsedValue >= 0 ? parsedValue : 0;
+}
 
 function getStoredTheme() {
   const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -54,6 +72,38 @@ function sanitizePlayerName(name) {
   return normalizedName.slice(0, 24);
 }
 
+function setStatusMessage(text, variant = 'info') {
+  const messageElement = document.getElementById('message');
+  if (!messageElement) {
+    return;
+  }
+
+  const normalizedText = String(text || '').trim();
+  if (!normalizedText) {
+    messageElement.innerText = '';
+    messageElement.removeAttribute('data-variant');
+    return;
+  }
+
+  const iconByVariant = {
+    success: '✅',
+    warning: '⚠️',
+    error: '❌',
+    completion: '🎉'
+  };
+
+  const allowedVariant = (
+    variant === 'success'
+    || variant === 'warning'
+    || variant === 'error'
+    || variant === 'completion'
+  ) ? variant : 'warning';
+
+  const prefix = iconByVariant[allowedVariant] || iconByVariant.warning;
+  messageElement.innerText = `${prefix} ${normalizedText}`;
+  messageElement.setAttribute('data-variant', allowedVariant);
+}
+
 function loadLeaderboardEntries() {
   try {
     const raw = localStorage.getItem(LEADERBOARD_STORAGE_KEY);
@@ -71,6 +121,8 @@ function loadLeaderboardEntries() {
       .map((entry) => ({
         name: sanitizePlayerName(entry.name),
         seconds: entry.seconds,
+        difficulty: normalizeDifficulty(entry.difficulty),
+        hintsUsed: normalizeHintsUsed(entry.hintsUsed),
         completedAt: Number.isInteger(entry.completedAt) ? entry.completedAt : 0
       }));
   } catch (error) {
@@ -94,27 +146,50 @@ function sortAndTrimLeaderboard(entries) {
 }
 
 function renderLeaderboard() {
-  const leaderboardList = document.getElementById('leaderboard-list');
-  if (!leaderboardList) {
+  const leaderboardBody = document.getElementById('leaderboard-body');
+  if (!leaderboardBody) {
     return;
   }
 
   const entries = sortAndTrimLeaderboard(loadLeaderboardEntries());
-  leaderboardList.innerHTML = '';
+  leaderboardBody.innerHTML = '';
 
   if (entries.length === 0) {
-    const emptyRow = document.createElement('li');
-    emptyRow.className = 'leaderboard-empty';
-    emptyRow.innerText = 'No completed games yet.';
-    leaderboardList.appendChild(emptyRow);
+    const emptyRow = document.createElement('tr');
+    const emptyCell = document.createElement('td');
+    emptyCell.className = 'leaderboard-empty';
+    emptyCell.colSpan = 5;
+    emptyCell.innerText = 'No completed games yet.';
+    emptyRow.appendChild(emptyCell);
+    leaderboardBody.appendChild(emptyRow);
     return;
   }
 
-  entries.forEach((entry) => {
-    const row = document.createElement('li');
+  entries.forEach((entry, index) => {
+    const row = document.createElement('tr');
     const displayName = entry.name || 'Anonymous';
-    row.innerText = `${formatElapsedTime(entry.seconds)} - ${displayName}`;
-    leaderboardList.appendChild(row);
+
+    const rankCell = document.createElement('td');
+    rankCell.innerText = String(index + 1);
+    row.appendChild(rankCell);
+
+    const nameCell = document.createElement('td');
+    nameCell.innerText = displayName;
+    row.appendChild(nameCell);
+
+    const timeCell = document.createElement('td');
+    timeCell.innerText = formatElapsedTime(entry.seconds);
+    row.appendChild(timeCell);
+
+    const difficultyCell = document.createElement('td');
+    difficultyCell.innerText = entry.difficulty;
+    row.appendChild(difficultyCell);
+
+    const hintsUsedCell = document.createElement('td');
+    hintsUsedCell.innerText = String(entry.hintsUsed);
+    row.appendChild(hintsUsedCell);
+
+    leaderboardBody.appendChild(row);
   });
 }
 
@@ -131,6 +206,8 @@ function recordSolvedGame() {
     {
       name: playerName,
       seconds: elapsedSeconds,
+      difficulty: currentGameDifficulty,
+      hintsUsed: currentGameHintsUsed,
       completedAt: Date.now()
     }
   ]);
@@ -274,12 +351,14 @@ function readBoardFromInputs() {
 async function newGame() {
   const difficultySelect = document.getElementById('difficulty');
   const difficulty = difficultySelect ? difficultySelect.value : 'medium';
+  currentGameDifficulty = normalizeDifficulty(difficulty);
+  currentGameHintsUsed = 0;
   const res = await fetch(`/new?difficulty=${encodeURIComponent(difficulty)}`);
   const data = await res.json();
   renderPuzzle(data.puzzle);
   hasRecordedWinForCurrentGame = false;
   resetAndStartTimer();
-  document.getElementById('message').innerText = '';
+  setStatusMessage('');
 }
 
 async function checkSolution() {
@@ -292,10 +371,8 @@ async function checkSolution() {
     body: JSON.stringify({board})
   });
   const data = await res.json();
-  const msg = document.getElementById('message');
   if (data.error) {
-    msg.style.color = 'var(--message-error)';
-    msg.innerText = data.error;
+    setStatusMessage(data.error, 'error');
     return;
   }
 
@@ -315,8 +392,7 @@ async function checkSolution() {
   if (data.is_complete_correct) {
     stopTimer();
     recordSolvedGame();
-    msg.style.color = 'var(--message-success)';
-    msg.innerText = 'Congratulations! You solved it!';
+    setStatusMessage('Congratulations! You solved the puzzle.', 'completion');
   } else {
     const incorrectCount = Number.isInteger(data.incorrect_count) ? data.incorrect_count : incorrect.size;
     const emptyCount = Number.isInteger(data.empty_count)
@@ -324,20 +400,23 @@ async function checkSolution() {
       : board.flat().filter(cell => cell === 0).length;
 
     if (incorrectCount > 0) {
-      msg.style.color = 'var(--message-error)';
+      const incorrectMessage = incorrectCount === 1
+        ? 'There is 1 incorrect entry.'
+        : `There are ${incorrectCount} incorrect entries.`;
+
       if (emptyCount > 0) {
-        msg.innerText = `You still have ${incorrectCount} mistake(s) and ${emptyCount} empty cell(s).`;
+        setStatusMessage(`${incorrectMessage} Fill the remaining ${emptyCount} empty cell(s).`, 'warning');
       } else {
-        msg.innerText = `You still have ${incorrectCount} mistake(s).`;
+        setStatusMessage(incorrectMessage, 'warning');
       }
     } else {
-      msg.style.color = 'var(--message-info)';
-      msg.innerText = `No mistakes so far. Fill the remaining ${emptyCount} empty cell(s).`;
+      setStatusMessage(`No mistakes so far. Fill the remaining ${emptyCount} empty cell(s).`, 'success');
     }
   }
 }
 
 async function useHint() {
+  currentGameHintsUsed += 1;
   const board = readBoardFromInputs();
   const res = await fetch('/hint', {
     method: 'POST',
@@ -346,16 +425,13 @@ async function useHint() {
   });
 
   const data = await res.json();
-  const msg = document.getElementById('message');
   if (data.error) {
-    msg.style.color = 'var(--message-error)';
-    msg.innerText = data.error;
+    setStatusMessage(data.error, 'error');
     return;
   }
 
   if (data.message) {
-    msg.style.color = 'var(--message-info)';
-    msg.innerText = data.message;
+    setStatusMessage(data.message, 'warning');
     return;
   }
 
@@ -369,8 +445,7 @@ async function useHint() {
   targetInput.disabled = true;
   targetInput.className = 'sudoku-cell hint-filled';
 
-  msg.style.color = 'var(--message-info)';
-  msg.innerText = `Hint used: filled row ${hint.row + 1}, column ${hint.col + 1}.`;
+  setStatusMessage(`Hint used: filled row ${hint.row + 1}, column ${hint.col + 1}.`, 'warning');
 }
 
 // Wire buttons

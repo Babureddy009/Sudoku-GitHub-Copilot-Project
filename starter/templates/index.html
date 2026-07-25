@@ -9,16 +9,11 @@
   <main class="app-shell">
     <h1>Sudoku Game</h1>
 
-    <section class="game-layout">
-      <section class="board-column" aria-label="Sudoku board section">
-        <div id="timer" aria-live="polite">Time: 00:00</div>
-        <div id="sudoku-board"></div>
-      </section>
-
-      <aside class="sidebar-column" aria-label="Game controls and leaderboard">
-        <div class="controls">
-          <div class="control-row control-row-inline">
-            <label for="difficulty">Difficulty:</label>
+    <section class="game-stack" aria-label="Sudoku game interface">
+      <section class="controls-panel" aria-label="Game controls">
+        <div class="control-row">
+          <div class="control-field">
+            <label for="difficulty">Difficulty</label>
             <select id="difficulty" name="difficulty">
               <option value="easy">Easy</option>
               <option value="medium" selected>Medium</option>
@@ -26,26 +21,47 @@
             </select>
           </div>
 
-          <div class="control-row control-row-inline">
-            <label for="player-name">Name (optional):</label>
+          <div class="control-field">
+            <label for="player-name">Name (optional)</label>
             <input id="player-name" name="player-name" type="text" maxlength="24" placeholder="Anonymous">
           </div>
-
-          <div class="control-row control-buttons">
-            <button id="theme-toggle" type="button" aria-pressed="false">Dark Mode</button>
-            <button id="new-game">New Game</button>
-            <button id="use-hint">Hint</button>
-            <button id="check-solution">Check Solution</button>
-          </div>
-
-          <p id="message" role="status" aria-live="polite"></p>
         </div>
+      </section>
 
-        <section id="leaderboard" aria-live="polite" aria-labelledby="leaderboard-title">
-          <h2 id="leaderboard-title">Top 10 Fastest Times</h2>
-          <ol id="leaderboard-list"></ol>
-        </section>
-      </aside>
+      <div id="timer" aria-live="polite">Time: 00:00</div>
+
+      <section class="board-panel" aria-label="Sudoku board section">
+        <div id="sudoku-board"></div>
+      </section>
+
+      <section class="actions-panel" aria-label="Game actions">
+        <div class="control-buttons">
+          <button id="new-game">New Game</button>
+          <button id="use-hint">Hint</button>
+          <button id="check-solution">Check Solution</button>
+          <button id="theme-toggle" type="button" aria-pressed="false">Dark Mode</button>
+        </div>
+      </section>
+
+      <p id="message" role="status" aria-live="polite"></p>
+
+      <section id="leaderboard" aria-live="polite" aria-labelledby="leaderboard-title">
+        <h2 id="leaderboard-title">Top 10 Fastest Times</h2>
+        <div class="leaderboard-table-wrap">
+          <table id="leaderboard-table">
+            <thead>
+              <tr>
+                <th scope="col">Rank</th>
+                <th scope="col">Name</th>
+                <th scope="col">Time</th>
+                <th scope="col">Difficulty</th>
+                <th scope="col">Hints Used</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
   </main>
 
